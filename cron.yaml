@@ -1,0 +1,12 @@
+cron:
+#- description: daily summary job
+#  url: /_cron/crawler
+#  schedule: every day 8:30
+
+#- description: daily summary job
+#  url: /_cron/cacheall
+#  schedule: every day 9:00 
+  
+- description: daily summary job
+  url: /_cron/customer_counter
+  schedule: every day 8:30

@@ -1,0 +1,1418 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+		<meta http-equiv="pragma" content="no-cache" />		
+	    <title>{{ app_name }}</title>
+		<link type="text/css" href="/static/css/redmond/jquery-ui-1.8.21.custom.css" rel="stylesheet" />
+		<link type="text/css" href="/css" rel="stylesheet" />
+	    <link type="text/css" href="/static/css/jquery.qtip.min.css" rel="stylesheet" />
+	    <link type="text/css" href="/static/js/tagsinput/jquery.tagsinput.css" rel="stylesheet" />
+		<script type="text/javascript" src="/static/js/jquery-1.7.2.min.js"></script>	
+		<script type="text/javascript" src="/static/js/jquery-ui-1.8.21.custom.min.js"></script>
+		<script type="text/javascript" src="/static/js/jquery/ui/i18n/jquery-ui-i18n.js"></script>
+		<script type="text/javascript" src="/static/js/jquery.autotext.js"></script>
+		<script type="text/javascript" src="/static/js/ajax.js"></script>
+		<script type="text/javascript" src="/static/js/autoGrowInput.js"></script>
+		<script type="text/javascript" src="/static/js/jquery.qtip.min.js"></script>
+		<script type="text/javascript" src="/static/js/date.format.js"></script>
+		<script type="text/javascript" src="/static/js/tagsinput/jquery.tagsinput.js"></script>
+		<script type="text/javascript">
+			current_user = null;
+			timeto = null;
+            timerID = null;
+			isHoliday = false;
+			conn = true;
+			status = {
+				signin:"1",
+				signout:"2",
+				logout:"3",
+				post:"4"
+			};
+			
+			user = [];
+			
+			holiday = [];
+			
+			function clearSignLog()
+			{
+				for(var i = 0;i < user.length;i++)
+				{
+					user[i].date_signin = null;
+					user[i].date_signout = null;
+				}
+			}
+			
+			function updateTimeTo()
+			{
+				var d = new Date();
+				if(d.getDay() >=1 && d.getDay() <=5)
+				{
+					if(((d.getHours() == 8 && d.getMinutes() > 45) || d.getHours() == 9) && updateCurrentUser(status.signin) != null)
+						timeto = status.signin;
+					else if((d.getHours() == 18 || d.getHours() == 19) && updateCurrentUser(status.signout) != null)
+						timeto = status.signout;
+					else
+						timeto = null;
+				}
+				else
+					timeto = null;
+			}
+			
+			function routine()
+			{	
+				var d = new Date();
+				server.getStatus(d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate(),
+								function(r){
+									//user = r.u;
+									holiday = r.h;
+									updateUser();
+									updateHoliday();
+									if(timerID != null)
+										clearInterval(timerID);
+									updateTimeTo();
+									if(!r.isHoliday && timeto != null)
+										setStatus(timeto);			
+									else
+									{
+										//addMsg("pass");
+										timerID = setInterval(routine, delay);		
+									}
+								});
+			}
+			
+			function ajaxSuccess(data)
+			{
+				$(document).delay(2000)
+						   .show(100, function(){
+								doAjax();
+							});				
+			}
+			
+			function doAjax()
+			{
+				$.ajax({
+					url: '/rpc?action=keepConn',
+					success: ajaxSuccess
+					});					
+			}	
+			
+			function updateUser()
+			{
+				$('#divUsers').html("<table id='users' class='ui-widget ui-widget-content'><thead><tr class='ui-widget-header '><th>Account</th><th></th></tr></thead><tbody></tbody></table>");
+				for(var i in user)
+					$('#users').append("<tr><td>" + user[i].id + "</td><td><a href='#' class='del_user' u='"+user[i].id+"'>Delete</a></td></tr>");
+			}
+			
+			function bindWorkspace() {
+			    server.bindWorkspace(function(r) {
+			        var tags = $("#left").find("#tags").html("").append("<ul class='tags'></ul>").find('ul.tags');
+			        for(var i in r.result) {
+			            var html = "";
+			            var tag = r.result[i].tag;
+			            var items = r.result[i].items;
+			            html += "<div class='tag' key='" + tag.key + "'><div class='tag-name'>" + tag.name + "</div><div class='items'><ol>";
+			            for(var j in items) {
+			                var item = items[j];                            
+                            html += "<li class='empty item' key='" + item.key + "' name='" + item.name +"'><div class='item-name'><a class='goto' href='#Items?i=" + item.key + "'>" + item.name + "</a></div><div class='status'><span>預約</span></div></li>";
+			            }
+			            html += "</ol><div class='clear'></div></div>";
+			            $('#divReserved').append(html);
+			            
+			            //left
+			            if (i == 0)
+    			            tags.append("<li class='selected'><a href='#" + tag.key + "'><span>" + tag.name + "</span></a></li>");
+    			        else
+        			        tags.append("<li class=''><a href='#" + tag.key + "'><span>" + tag.name + "</span></a></li>");
+			        }
+			        // Click event for any anchor tag that's href starts with #
+                    tags.find('li>a').click(function(event) {
+                
+                        // The key of the section we want to go to.
+                        var key = $(this).attr("href").substring(1);
+                        
+                        // An offset to push the content down from the top.
+                        var offset = 60;
+                
+                        // Our scroll target : the top position of the
+                        // section that has the id referenced by our href.
+                        var target = $('#divReserved div[key="' + key + '"]').offset().top - offset;
+                
+                        // The magic...smooth scrollin' goodness.
+                        $('html, body').animate({scrollTop:target}, 300);
+                
+                        //prevent the page from jumping down to our section.
+                        event.preventDefault();
+                    });
+			        update();
+			    });
+			}
+			
+			function update(date) {
+			    if (!date)
+			        date = $("#now").datepicker('getDate').format('mm/dd/yyyy');
+			    queryBirthdays(date);
+			    server.getReserved(date, function(r) {
+			        var totalBreakfast = 0;
+			        var items = $('#divReserved').find('li.item').removeClass('reserved').addClass('empty');
+			        items.find('.status').html('<span>預約</span>');
+			        for(var i in r.result) {
+			            var item = items.filter('[key="' + r.result[i].item.key + '"]');
+			            var records = r.result[i].records;
+                        var html = "";
+			            if(records.length > 0) {
+			                item.removeClass('empty').addClass('reserved');
+			                var reserved = records[0];
+			                totalBreakfast += reserved.breakfast;
+                            html += "<a href='#' class='edit-reserved button' key='" + reserved.key + "'><span class='ui-icon ui-icon-pencil'></span></a>"
+                                    + "<div><a class='customer goto' href='#Customer?c=" + reserved.customer.key + "'>" + reserved.customer.name + "</a></div>"
+                                    + "<div>" + reserved.customer.phone + "</div>";
+                            html += "<ol class='status-bar'>"
+                            if (reserved.paid == 0)
+                                html += "<li><a class='ui-icon ui-icon-help' title='未付款'></a></li>";
+                            else
+                                html += "<li><a class='ui-icon ui-icon-check' title='已付款'></a></li>";
+                            if(reserved.note.trim() != '')
+                                html += "<li><a class='ui-icon ui-icon-comment' note='" + reserved.note + "'></a></li>";
+                            html += "<li><a class='ui-icon ui-icon-person' title='早餐'></a></li>";
+                            html += "<li><div>x " + reserved.breakfast + "</div></li>";
+                            html += "</ol>";
+			            } else {
+
+			            }
+			            item.find('.status').html(html);
+			        }
+    			    $("#divBreakfast").hide().fadeIn("slow")
+    			        .find('.count').text('' + totalBreakfast);
+                    $('li.reserved .ui-icon-comment').qtip({
+                        content: {
+                            text: function(api) {
+                                return $(this).attr('note');
+                            }
+                        }
+                    });
+			    });
+			}
+			
+			function updateItems() {
+			    return false;
+			    $("#dlg_reserve").find("#room option").remove();
+			    $("#dlg_edit_reserve").find("#room option").remove();
+			    server.getItems(function(r) {
+                    $("#divRoomCount").hide().find(".count").text('' + r.rooms.length);
+			        $("#divRoomCount").show();
+			        
+			        var html = "";
+			        var lastFloor = 0;
+			        if(r.rooms.length > 0) {
+    			        lastFloor = r.rooms[0].floor;
+			            html += "<div class='floor' floor='" + lastFloor + "'><div class='floor-number'>" + lastFloor + "F</div><div class='rooms'><ol>";
+			        }
+			        
+			        for(var i in r.rooms) {
+			            //$("#dlg_reserve").find("#room").append("<option value='" + r.rooms[i].key + "'>" + r.rooms[i].floor + "F - "+ r.rooms[i].name + "</option>");
+			            
+			            var room = r.rooms[i];
+			            var floor = room.floor;
+                        if(lastFloor != floor) {
+                            if(html != "")
+                                html += "<li class='add-floor'><span>+</span></li></ol></div><div style='clear:both;'></div></div>";
+                            html += "<div class='floor' floor='" + floor + "'><div class='floor-number'>" + floor + "F</div><div class='rooms'><ol>";
+                        }
+                        
+                        html += "<li class='room' key='" + room.key + "'><div><a href='#Rooms?r=" + room.key + "'>" + room.name + "</a></div></li>";
+			            lastFloor = floor;
+			        }
+			        
+			        if(r.rooms.length > 0) {
+			            html += "<li class='add-floor'><span>+</span></li></ol></div><div style='clear:both;'></div></div>";
+			        }
+			        
+			        $("#divRooms").html(html);
+			    });
+			}
+			
+			function setCurrentPage(goto, text) {
+			    var pageName = "";
+			    if(goto.indexOf("Customer") == 0)
+			        pageName = "customer";
+			    else if(goto.indexOf("Items") == 0)
+			        pageName = "items";
+			    else
+			        pageName = "home";
+
+			    $('#divTop li.current').removeClass('current');
+			    if(!pageName || $('#divTop li.' + pageName).length == 0)
+			        $('#divTop li.home').addClass('current');
+	            else
+    			    $('#divTop li.' + pageName).addClass('current');
+			    $('#divContent>div').hide();
+			    $('#' + pageName).show();
+			    if(pageName == 'customer') {
+			        $("#customer .content>div").hide();
+			        updateCustomerCount();
+			        var vars = getHashVars(goto);  
+			        if(typeof vars.c == "undefined") {
+                        $("#customer span.title").text('顧客動態');
+                        $("#customer .activities").show();
+                        queryCustomerActivities();
+			        } else {
+			            $("#customer span.title").text(text);
+                        $("#customer .info").show();
+                        queryCustomerReservedRecords(vars.c);
+                    }
+			    } else if(pageName == 'items') {
+			        var vars = getHashVars(goto);  
+			        if(typeof vars.i == "undefined") {
+			            $("#items span.title").text("所有房間");
+			        } else {
+			            $("#items span.title").text(text);
+                        queryItemInfo(vars.i);
+                    }
+			    }
+			}
+			
+			function queryBirthdays(date) {
+			    server.queryBirthdays(date, function(r) {
+			        if(r.result.length == 0)
+			            $("#birthdays").hide();
+			        else {
+			            var births = $("#birthdays").find('#births').html("");
+			            for(var i in r.result) {
+			                var c = r.result[i];
+			                births.append("<div><a class='goto' href='#Customer?c=" + c.key +"'>" + c.name + "</a></div>");
+			            }
+			            $("#birthdays").show();
+			        }
+			    });
+			}
+			
+			function queryItemInfo(key) {
+			    server.queryItemInfo(key, function(r) {
+			        if(r.success) {
+			            $("#items span.title").text(r.item.name);
+			            var records = $("#divItemInfo").find('.records').html('<br />');
+			            var lastDate = null;
+			            for(var i in r.result) {
+			                var reserve = r.result[i];
+			                var c = reserve.customer;
+			                records.append("<div class='day reserved'></div>");
+			                var lastDay = records.find(".day").last();
+			                lastDay.append("<div class='days'></div>")
+			                var days = lastDay.find(".days");
+			                days.append("<div class='date'>" + reserve.date_to + "</div>");
+			                
+			                var date_to = new Date(reserve.date_to);
+			                var date_from = new Date(reserve.date_from);
+			                if(reserve.date_to != reserve.date_from) {			                    
+			                    while(true) {
+			                        date_to.setDate(date_to.getDate() - 1);
+			                        if(date_to.getTime() < date_from.getTime())
+			                            break;
+			                        days.append("<div class='date'>" + date_to.format("mm/dd/yyyy") + "</div>");    
+			                    }
+			                }
+			                lastDay.append("<div class='reserveInfo'></div>");
+			                var lastReserve = lastDay.find(".reserveInfo");
+			                lastReserve.append("<div class='name'><a class='goto' href='#Customer?c=" + c.key + "'>" + c.name + "</a></div>");
+			                lastReserve.append("<div class='info'>" + c.phone + "</div>");
+			                lastReserve.append("<div class='note'><p>" + reserve.note + "</p></div>");
+			                lastDay.append("<div class='clear'></div>");	
+			                if(i < (r.result.length - 1)) {
+			                    var j = parseInt(i, 10) + 1;
+			                    var next = r.result[j];
+			                    date_to = new Date(next.date_to);
+			                    date_from.setDate(date_from.getDate() - 1);
+			                    if(date_to.getTime() != date_from.getTime()) {
+			                        while(true) {
+                                        date_from.setDate(date_from.getDate() - 1);
+                                        if(date_to.getTime() >= date_from.getTime())
+                                            break;
+                                        records.append("<div class='day empty'><div class='date'>" + date_from.format("mm/dd/yyyy") + "</div><div></div></div>");    
+                                    }
+			                    }
+			                }		                
+			            }
+			        }
+			    });
+			}
+			
+			function updateCustomerInfo(c) {
+                $("#customer span.title").text(c.name);
+                var container = $('#divCustomers').find('#divCustomerInfo')
+                            .html('')
+                            .attr('key', c.key)
+                            .append('<ol></ol>')
+                            .find('ol');
+                var birthday = "";
+                if(c.birthday) {
+                    var date = new Date(c.birthday);
+                    if(date.getFullYear() == 1900)
+                        birthday = date.format("mm/dd");
+                    else
+                        birthday = date.format("mm/dd/yyyy");
+                }
+                if (birthday)
+                    container.append("<li>生日:" + birthday + "</li>");
+                if (c.phone)
+                    container.append("<li>電話:" + c.phone + "</li>");
+                if (c.email)
+                    container.append("<li>Email:" + c.email + "</li>");
+                    
+                container = $('#divCustomers').find('#note');
+                if(c.note) {
+                    container.find('p').text(c.note);
+                } else {
+                    container.find('p').text("關於...");
+                }
+			}
+			
+			function queryCustomerReservedRecords(key) {
+                $('#divCustomers').find('.empty').hide();
+                server.getCustomerReservedRecords(key, function(r) {
+                    if(r.success) {
+                        updateCustomerInfo(r.customer);
+                        
+                        $('#divCustomers').find('#divReservedRecords').html('');
+                        if(r.result.length > 0) {
+                            $("#divReservedCount").hide().find(".count").text('' + r.result.length);
+                            $("#divReservedCount").fadeIn("slow");
+                        } else {
+                            $("#divReservedCount").hide();
+                        }
+                        for(i in r.result) {
+                            var reserve = r.result[i];
+                            var html = "";
+                            if(reserve.status == 0)
+                                html += "<div class='reserved' key='" + reserve.key + "'>";
+                            else if(reserve.status == 2)
+                                html += "<div class='reserved cancelled' key='" + reserve.key + "'>";
+                            html += "<div><span class='date-from'>" + reserve.date_from + "</span><a class='item-name goto' href='#Items?i=" + reserve.item.key + "'>" + reserve.item.name + "</a>";
+                            if(reserve.date_from != reserve.date_to)
+                                html += "<span class='date-to'>" + reserve.date_to + "</span>";
+                            html += "</div>"
+                                    + "<div><p>" + reserve.note + "</p></div>"
+                            //bottom
+                            if(reserve.paid == 1)
+                                html += "<div><a>已付款</a></div>";
+                            else
+                                html += "<div><a>未付款</a></div>";
+                            //button
+                            html += "<ul class='tools'><li><button class='edit'><span class='icon ui-icon-pencil'></span></button></li></ul>"
+                            html += "</div>";
+                            $('#divCustomers').find('#divReservedRecords')
+                                            .append(html);
+                        }
+                    }
+                });   
+			}
+			
+			function queryCustomerActivities() {
+			    $('div.activities .list').html('');
+			    server.queryCustomerActivities(function(r) {
+			        if(r.success) {
+			            var list = $('div.activities .list');
+			            for(var i in r.result) {
+			                var reserved = r.result[i];
+			                var c = reserved.customer;
+			                var item = reserved.item;
+			                var html = "";
+			                if(reserved.status == 0)
+    			                html += "<div><a class='goto' href='#Customer?c=" + c.key + "'>" + c.name + "</a>預約了<a class='goto' href='#Items?i=" + item.key + "'>" + item.name + "</a>";
+    			            else if(reserved.status == 2)
+    			                html += "<div><a class='goto' href='#Customer?c=" + c.key + "'>" + c.name + "</a>取消預約<a class='goto' href='#Items?i=" + item.key + "'>" + item.name + "</a>";
+			                if(reserved.date_from == reserved.date_to) {
+			                    html += ", 在<a>" + reserved.date_from + "</a>";
+			                } else {
+			                    html += ", 從<a>" + reserved.date_from + "</a>到<a>" + reserved.date_to + "</a>";
+			                }
+			                html += "</div>";
+			                list.append(html);
+			            }
+			        }
+			    });
+			}
+			
+            function getHashVars(url){
+                var vars = [], hash;
+                var hashes = url.slice(url.indexOf('?') + 1).split('&');
+                for(var i = 0; i < hashes.length; i++)
+                {
+                    hash = hashes[i].split('=');
+                    vars.push(hash[0]);
+                    vars[hash[0]] = hash[1];
+                }
+                return vars;
+            }
+			
+			function updateCustomerCount() {
+			    server.getCustomerCount(function(r) {
+			        $('#divCustomerCount').hide()
+			                            .find('.count').text('' + r.count);
+			        $('#divCustomerCount').fadeIn("slow");
+			    });
+			}
+			
+			function setRadioValue(radio, value) {
+			    if(value == "default") {
+			        radio.find("li").removeClass('selected').filter("li.default").addClass("selected");
+			        radio.attr('value', radio.find('li.selected').val());
+			    } else
+    			    radio.attr('value', value).find("li").removeClass('selected').filter("li[value=" + value + "]").addClass("selected");
+			}
+			
+			function updateTaskCount() {
+			    $("#menu .todo .count").text(($("#todo .old").length - $("#todo input:checked").length) + "");
+			    $("#todo input:checked").parents('.task').addClass('finished');
+			}
+			
+			function queryTasks() {
+			    $("#todo .old").remove();
+			    server.queryTasks(function(r) {
+			        if(r.result.length == 0)
+			            return;
+			        for(var i in r.result) {
+			            var t = r.result[i];
+			            var finished = t.finished ? "checked='checked'":"";
+			            $("<div class='task old' key='" + t.key + "'><input type='checkbox' " + finished + " /><input type='text' class='content' value='" + t.content + "' /></div>")
+                                                        .insertBefore("#todo .new");
+			        }
+			        updateTaskCount();
+			    });
+			}
+			
+			function editCustomer(key) {
+			    server.getCustomer(key, function(r) {
+                        if(r.success) {
+                            var c = r.result;
+                            var form = $('#dlg_customer');
+                            
+                            form.attr('key', c.key);
+                            form.find("#name").val(c.name);
+                            var birthday = c.birthday;
+                            if(birthday) {
+                                birthday = new Date(birthday);
+                                form.find("#birth_year").val(birthday.getFullYear());
+                                form.find("#birth_month").val(birthday.getMonth() + 1);
+                                form.find("#birth_day").val(birthday.getDate());
+                            }
+                            form.find("#phone").val(c.phone);
+                            form.find("#email").val(c.email);
+                            setRadioValue($("#dlg_customer #msg_approval"), c.msg_approval);
+                            form.find("#note").val(c.note);
+                            $('#dlg_customer').dialog('open');
+                        } else {
+                            $('#dlg_customer').dialog('close');
+                        }
+                    });
+			}
+			
+			function editReserved(key) {
+                $('#dlg_reserve').attr('mode', 'edit');
+                server.getReservedInfo(key, function(r) {
+                    if(r.success) {     
+                        var c = r.result.customer;
+                        var item = r.result.item;
+
+                        $('#dlg_reserve').attr('key', r.result.key);
+                        $('#dlg_reserve').find(".textboxlist-item").remove();
+                        $('#dlg_reserve').find("input#name")
+                                        .hide().parent()
+                                                .append("<span class='textboxlist-item' key='" + c.key + "'>" + c.name + "<a href='#' class='textboxlist-delete'>x</a></span>");
+                        $('#dlg_reserve').find("#name").val(c.name);
+                        var birthday = c.birthday;
+                        if(birthday) {
+                            birthday = new Date(birthday);
+                            $('#dlg_reserve').find("#birth_year").val(birthday.getFullYear());
+                            $('#dlg_reserve').find("#birth_month").val(birthday.getMonth() + 1);
+                            $('#dlg_reserve').find("#birth_day").val(birthday.getDate());
+                        }
+                        $('#dlg_reserve').find("#phone").val(c.phone);
+                        $('#dlg_reserve').find("#email").val(c.email);
+                        setRadioValue($("#dlg_reserve #msg_approval"), c.msg_approval);
+                        $('#dlg_reserve').find("#date_from").val(r.result.date_from);
+                        $('#dlg_reserve').find("#date_to").val(r.result.date_to);
+                        $("#dlg_reserve").find("#item").attr('key', item.key).val(item.name);
+                        $("#dlg_reserve").find("#breakfast>option[value=" + r.result.breakfast + "]").attr("selected","true");
+                        setRadioValue($("#dlg_reserve #paid"), r.result.paid);
+                        $('#dlg_reserve').find("#note").val(r.result.note);
+                        $('#dlg_reserve').dialog('open'); 
+                    }
+                });
+			    
+			}
+			
+			function editItem(key) {
+			}
+			
+			$(function(){
+			    $("#left").css('top', $('#divTop').height() + 'px');
+			    
+			    $('#msg').hide();
+			    var now = new Date();
+			    $("ol.radio li").live('click', function() {
+			        $(this).parent().attr('value', $(this).val()).find('li').removeClass('selected');
+			        $(this).addClass('selected');
+			    });
+			    
+			    
+			    var locale = $.datepicker.regional["{{ locale }}"];
+			    locale.showButtonPanel = true;
+			    locale.dateFormat = "mm/dd/yy";
+			    locale.showOtherMonths = true;
+			    locale.selectOtherMonths = true;
+			    //locale.changeMonth = true;
+                //locale.changeYear = true;
+			    $("#dlg_reserve #date_to").datepicker(locale);
+			    var locale_date_from = jQuery.extend(true, {}, locale);
+			    locale_date_from.onSelect = function( selectedDate ) {
+                        $( "#dlg_reserve #date_to" ).datepicker( "option", "minDate", selectedDate );
+                    };
+			    $("#dlg_reserve #date_from").datepicker(locale_date_from);
+			    
+			    var locale_date_now = jQuery.extend(true, {}, locale);
+			    locale_date_now.onSelect = function( selectedDate, ui) {
+                    update(selectedDate);
+                    $('#export').attr('href', 'exportXls?now=' + selectedDate);
+                    $( "#home p span.title" ).text($(this).datepicker("getDate").format("mm.dd, yyyy"));
+                };
+                $("#now").datepicker(locale_date_now);
+                $("#now").datepicker("setDate", now);
+			    $( "#home p span.title" ).text(now.format("mm.dd, yyyy"));
+			    $( "#search" ).blur(function() {
+			        if($(this).val().trim() == '')
+			            $(this).val('搜尋顧客姓名、電話或房間').addClass('empty');
+			    }).focus(function() {
+			        if($(this).hasClass('empty'))
+			            $(this).val('');
+			        $(this).removeClass('empty');
+			    })/*.autocomplete({
+                    source: "search",
+                    minLength: 1,
+                    autoFocus: true,
+                    focus: function(event, ui) {
+                       return false;
+                    },
+                    select: function( event, ui ) {
+                        if(ui.item) {
+                            $(this).val('');
+                            if(ui.item.isItem) {
+                                window.location.hash = "Items?i=" + ui.item.key;
+                            } else {
+                                window.location.hash = "Customer?c=" + ui.item.key;
+                            }
+                            setCurrentPage(window.location.hash.substring(1), ui.item.name);
+                        }
+                        else
+                            $('#divCustomers').append("<div>Nothing selected, input was " + this.value + "</div>");
+                        return false;
+                    }
+                })*/.focus().blur();
+                
+                $( "#search" ).autotext({ 
+                    serviceUrl:'search',
+                    minChars:1,
+                    maxHeight:400,
+                    deferRequestBy:300,
+                    onSelect: function(value, data) { 
+                        $( "#search" ).val('');
+                        if(data.isItem) {
+                            window.location.hash = "Items?i=" + data.key;
+                        } else {
+                            window.location.hash = "Customer?c=" + data.key;
+                        }
+                        setCurrentPage(window.location.hash.substring(1), data.name);
+                    }
+                });
+                
+                $("#dlg_reserve #item").focus(function() {
+                    $(this).select();
+                }).autocomplete({
+                    source: "item",
+                    minLength: 0,
+                    autoFocus: true,
+                    select: function( event, ui ) {
+                        if(ui.item) {
+                            $(this).attr('key', ui.item.key);
+                        }
+                    }
+                });
+                
+                $("#menu .todo a").click(function() {
+                    $("#todo").toggle();
+                    $("#todo .new").find('.content').val('').focus();
+                    return false;
+                });
+                
+                $("#todo .new .content").keypress(function (e) {
+                    if ((e.which && e.which == 13) || (e.keyCode && e.keyCode == 13)) {
+                        var checked = $(this).parents('.task').find('.isfinished').attr("checked") == 'checked' ? true:false;
+                        server.todo(true, 
+                                    "", 
+                                    $(this).val(), 
+                                        checked,
+                                        function(r) {
+                                            if(r.success) {
+                                                var finished = r.task.finished ? "checked='checked'":"";
+                                                $("<div class='task old' key='" + r.task.key + "'><input type='checkbox' " + finished + " /><input type='text' class='content' value='" + r.task.content + "' /></div>")
+                                                        .insertBefore("#todo .new");
+                                                $("#todo .new").find('.content').val('').blur().focus();
+                                                $("#todo .new .isfinished").attr('checked', false);
+                                                updateTaskCount();
+                                            }                                            
+                                        });
+                        return false;
+                    } else {
+                        return true;
+                    }
+                });
+                var delay = (function(){
+                        var timer = 0;
+                        return function(callback, ms) {
+                                clearTimeout (timer);
+                                timer = setTimeout(callback, ms);
+                            };
+                    })();
+                    
+                $("#todo .old .content").live({keyup:function(e) {
+                    if ((e.which && e.which == 8) || (e.keyCode && e.keyCode == 8)) {
+                        if($(this).val().trim() == '' && $(this).parents('.task').hasClass('empty')) {
+                            if($(this).parents('.task').prev().length > 0)
+                                $(this).parents('.task').prev().find('.content').focus();
+                            else
+                                $("#todo .new").find('.content').focus();
+                            server.removeTask($(this).parents('.task').attr('key'));
+                            $(this).parents('.task').remove();
+                        } else if($(this).val().trim() == '')
+                            $(this).parents('.task').addClass('empty');
+                    } 
+                    if($(this).val().trim() != '')
+                        $(this).parents('.task').removeClass('empty');
+                    var input = $(this);
+                    delay(function(){
+                        var checked = input.parents('.task').find('.isfinished').attr("checked") == 'checked' ? true:false;
+                            server.todo(false, 
+                                input.parents('.task').attr("key"), 
+                                input.val(), 
+                                    checked,
+                                    function(r) {
+                                        if(r.success) {
+                                            updateTaskCount();
+                                        }                                            
+                                    });
+                    }, 1000 );
+                }});
+                
+                $("#todo .old input[type=checkbox]").live('click', function() {
+                    if($(this).attr("checked")) {
+                        $(this).parents('.task').addClass('finished');
+                    } else {
+                        $(this).parents('.task').removeClass('finished');
+                    }
+                    
+                    var checked = $(this).attr("checked") ? true:false;
+                    server.todo(false, 
+                        $(this).parents('.task').attr("key"), 
+                        $(this).parents('.task').find('.content').val(), 
+                            checked,
+                            function(r) {
+                                if(r.success) {
+                                }                                            
+                            });
+                    updateTaskCount();
+                });
+                
+                $("#todo .clearall").click(function() {
+                    server.clearFinishedTasks(function(r){  
+                        queryTasks();
+                    });
+                });
+                
+                $("#dlg_reserve .textboxlist-delete").live('click', function() {
+                    $('#dlg_reserve .customer-info').find(".textboxlist-item").remove();
+                    $('#dlg_reserve .customer-info').find("#name").show().val('').focus();
+                    $('#dlg_reserve .customer-info').find("input, textarea").val('');
+                    $('#dlg_reserve .customer-info').find("select").find(":first-child").attr("selected","true");
+                    setRadioValue($('#dlg_reserve .customer-info').find("ol.radio"), "default");
+                    $('#dlg_reserve').find("input#name").show().focus();
+                });
+                
+                $('#dlg_reserve').find("input#name").autoGrowInput({
+                    comfortZone: 70,
+                    minWidth: 0,
+                    maxWidth: 1000
+                }).autocomplete({
+                    source: "customer",
+                    minLength: 1,
+                    autoFocus: false,
+                    focus: function(event, ui) {
+                       return false;
+                    },
+                    select: function( event, ui ) {
+                        if(ui.item) {
+                            $(this).val(ui.item.name);
+                            $(this).hide().parent().append("<span class='textboxlist-item' key='" + ui.item.key + "'>" + ui.item.name + "<a href='#' class='textboxlist-delete'>x</a></span>");
+                            $('#dlg_reserve').find("#name").val(ui.item.name);
+                            var birthday = ui.item.birthday;
+                            if(birthday) {
+                                birthday = new Date(birthday);
+                                $('#dlg_reserve').find("#birth_year").val(birthday.getFullYear());
+                                $('#dlg_reserve').find("#birth_month").val(birthday.getMonth() + 1);
+                                $('#dlg_reserve').find("#birth_day").val(birthday.getDate());
+                            }
+                            $('#dlg_reserve').find("#phone").val(ui.item.phone);
+                            $('#dlg_reserve').find("#email").val(ui.item.email);
+                            $('#dlg_reserve').find("#phone").focus();
+                            setRadioValue($('#dlg_reserve').find("#msg_approval"), ui.item.msg_approval);
+                            return false;
+                        }
+                    }
+                });;
+			    
+			    $('#export').attr('href', 'exportXls?now=' + now.format("mm/dd/yyyy"));
+
+				$('.delete_reserve').live('click', function(){
+					$('#dlg_delete').dialog('open')
+								 .attr('u', $(this).attr('u'));		 
+					return false;
+				});
+				
+				$('#divReserved a[name=cancel]').live('click', function(){
+					$('#dlg_cancel').dialog('open')
+								 .attr('key', $(this).attr('key'));		 
+					return false;
+				});
+				
+				$('#divReserved li.empty');
+				
+				/*$('#divReserved>div').live({
+				    mouseenter:function() {
+				        $(this).find(".add-floor").show();
+				    },
+				    mouseleave:function() {
+				        $(this).find(".add-floor").hide();
+				    }
+				});*/
+				
+				$('#divReserved .add-floor').live('click', function() {
+				    $('#dlg_room').find("#name").val('');
+				    $("#dlg_room").find("#floor>option[value=" + $(this).parents('.floor').attr("floor") + "]").attr("selected","true");
+                    $('#dlg_room').dialog('open');
+				});
+				
+				/*$('#divReserved div.room-name').live({
+				    mouseenter:function() {
+				        $(this).find(".edit-room").show();
+				    },
+				    mouseleave:function() {
+				        $(this).find(".edit-room").hide();
+				    }
+				});*/
+				
+				$('.edit-room').live('click', function() {
+				    $('#dlg_edit_room').find("#name").val($(this).parents('.room-name').text());
+				    $("#dlg_edit_room").find("#floor>option[value=" + $(this).parents('.floor').attr("floor") + "]").attr("selected","true");
+				    $('#dlg_edit_room').attr('key', $(this).parents('.room').attr('room'));
+                    $('#dlg_edit_room').dialog('open');
+				});
+				
+				$('#divReserved li.empty div.status').live('click', function() {
+				    var item = $(this).parents('li.item');
+				    $('#dlg_reserve').attr('mode', 'new');
+                    $('#dlg_reserve').find("#date_from").val($("#now").datepicker('getDate').format('mm/dd/yyyy'));
+                    $('#dlg_reserve').find("#date_to").val($("#now").datepicker('getDate').format('mm/dd/yyyy'));
+                    $("#dlg_reserve").find("#item").attr('key', item.attr('key')).val(item.attr('name'));
+                    $('#dlg_reserve').dialog('open');
+                    return false;
+				});
+				
+				$('#divReserved li.reserved .edit-reserved').live('click', function() {
+				    editReserved($(this).attr('key'));
+                    return false;
+				});
+				
+				$('#divReservedRecords .edit').live('click', function() {
+				    editReserved($(this).parents('.reserved').attr('key'));
+				});
+				
+				var btnNew = {
+						"確定": function() {  
+                            var isNew = false;
+                            if($(this).attr('mode') == 'new') {
+                                isNew = true;
+                            }
+                            var item = $('#dlg_reserve').find("input#name").parent().find(".textboxlist-item");
+                            var isNewCustomer = item.length > 0 ? false:true;
+                            var name = isNewCustomer ? $(this).find("#name").val():item.attr("key");
+                            var birthday = "";
+                            if($(this).find("#birth_month").val() != "" && $(this).find("#birth_day").val() != "") {
+                                birthday = $(this).find("#birth_month").val() + "/" + $(this).find("#birth_day").val() + "/" + $(this).find("#birth_year").val();
+                                birthday = new Date(birthday).format("mm/dd/yyyy");
+                            }
+                            server.reserve(
+                                isNew,
+                                $(this).attr('key'),
+                                isNewCustomer,
+                                name, 
+                                birthday, 
+                                $(this).find("#phone").val(), 
+                                $(this).find("#email").val(), 
+                                $(this).find("#msg_approval").find('.selected').val(),
+                                $(this).find("#date_from").val(), 
+                                $(this).find("#date_to").val(), 
+                                $(this).find("#item").attr('key'),
+                                $(this).find("#breakfast").val(), 
+                                $(this).find("#paid").find('.selected').val(),
+                                $(this).find("#note").val(), 
+                                function(r){
+                                    if(r.success)
+                                        update();
+                                    else
+                                        alert(r.msg);
+                                });
+                            $(this).dialog("close");
+						}, 
+						"關閉": function() { 
+							$(this).dialog("close"); 
+						}};
+				var btnEdit = jQuery.extend(true, {}, btnNew);
+				btnEdit["取消訂房"] = function() {
+				    $('#dlg_cancel').attr('key', $('#dlg_reserve').attr('key'));
+				    $('#dlg_cancel').dialog('open');
+				};
+				
+				$(window).resize(function() {
+				    $('#todo .tasks').height( $(window).height() * 0.6);
+                });
+                
+                $(window).trigger('resize');
+				
+				// Dialog			
+				$('#dlg_reserve').dialog({
+					autoOpen: false,
+					width: 850,
+					modal: true,
+					dialogClass: 'dlg',
+					resizable:false,
+                    open: function(event, ui) {
+                        //alert(document.applet.test("speshiou"));
+                        //alert($("#applet")[0].send("test", 8000, "bwslippa", "slippamima", "0976206557", "test joey"));          
+                        
+                        if($(this).attr('mode') == 'new') {
+                             $(this).dialog('option', 'buttons', btnNew);
+                             $(this).find("#name").focus();
+                        } else {
+                            $(this).find("#phone").focus();
+                            $(this).dialog('option', 'buttons', btnEdit);
+                        }
+					},
+					close: function(event, ui) {
+                        $(this).find(".textboxlist-item").remove();
+                        $(this).find("#name").show().val('').focus();
+                        $(this).find("input, textarea").val('');
+                        $(this).find("select").find(":first-child").attr("selected","true");
+                        setRadioValue($(this).find("ol.radio"), "default");
+					}
+				});
+				
+				$('#dlg_customer').dialog({
+					autoOpen: false,
+					width: 400,
+					modal: true,
+                    open: function(event, ui) {
+                        $(this).attr('key', $('#divCustomerInfo').attr('key'));
+                        $(this).find("#name").focus();
+					},
+					close: function(event, ui) {
+                        $(this).find(".textboxlist-item").remove();
+                        $(this).find("input, textarea").val('');
+                        $(this).find("select").find(":first-child").attr("selected","true");
+                        setRadioValue($(this).find("ol.radio"), "default");
+					},
+					buttons: {
+						"確定": function() { 
+                            var birthday = "";
+                            if($(this).find("#birth_month").val() != "" && $(this).find("#birth_day").val() != "") {
+                                birthday = $(this).find("#birth_month").val() + "/" + $(this).find("#birth_day").val() + "/" + $(this).find("#birth_year").val();
+                                birthday = new Date(birthday).format("mm/dd/yyyy");
+                            }
+							server.customer(false, 
+							                $(this).attr('key'),
+							                $(this).find('#name').val(),
+							                birthday,
+							                $(this).find("#phone").val(), 
+							                $(this).find("#email").val(), 
+							                $(this).find("#msg_approval").find('.selected').val(),
+							                $(this).find("#note").val(),
+							                function(r){
+							                    if(r.success) {
+							                        updateCustomerInfo(r.result);
+							                    }
+							                });
+							$(this).dialog("close");
+						}, 
+						"取消": function() { 
+							$(this).dialog("close"); 
+						} 
+					}
+				});
+				
+				$('#divCustomers #note, #btnEditCustomer').click(function() {
+				    editCustomer($('#divCustomerInfo').attr('key'));
+				});
+				
+				$('#btnDelCustomer').qtip({
+				    content: {
+				        text:"<div id='qtip_delcustomer' class='popup'><div><span>確定</span></div><div><span>取消</span></div></div>"
+				    },
+				    position: {
+				        my:'top center',
+				        at:'bottom center'
+				    },
+				    style: {
+				        classes: 'ui-tooltip-shadow ui-tooltip-light'
+				    },
+				    show: 'mousedown',
+        			hide: 'unfocus'
+				});
+				
+				$('#qtip_delcustomer>div').live('click', function() {
+				    $('#btnDelCustomer').qtip('api').hide();
+				});
+				
+				$('.tip').qtip({
+                    content: {
+                        text: function(api) {
+                            // Retrieve content from custom attribute of the $('.selector') elements.
+                            return $(this).attr('qtip-content');
+                        }
+                    },
+				    position: {
+				        my:'top center',
+				        at:'bottom center'
+				    },
+                    style: {
+				        classes: 'ui-tooltip-shadow ui-tooltip-dark'
+				    }
+                });
+				
+				$('#dlg_room').dialog({
+					autoOpen: false,
+					width: 400,
+					modal: true,
+					open: function(event, ui) {
+					    $(this).find("#name").val("");
+					},
+					buttons: {
+						"確定": function() { 
+							$(this).dialog("close"); 
+							server.addRoom(
+							    true,
+							    "",
+								$(this).find("#name").val(), 
+								$(this).find("#floor").val(), 
+								function(r){
+									if(r.success) {
+									    updateItems();
+									    update();
+									}
+								});
+						}, 
+						"取消": function() { 
+							$(this).dialog("close"); 
+						} 
+					}
+				});
+				
+				$('#dlg_edit_room').dialog({
+					autoOpen: false,
+					width: 400,
+					modal: true,
+					buttons: {
+						"確定": function() { 
+							$(this).dialog("close"); 
+							server.item(
+							    false,
+    							$(this).attr('key'),
+								$(this).find("#name").val(), 
+								$(this).find("#floor").val(), 
+								function(r){
+									if(r.success) {
+									    updateItems();
+									    update();
+									}
+								});
+						}, 
+						"取消": function() { 
+							$(this).dialog("close"); 
+						} 
+					}
+				});
+				
+				$('#dlg_delete').dialog({
+					autoOpen: false,
+					width: 200,
+					height:200,
+					modal: true,
+					buttons: {
+						"確定": function() { 
+							$(this).dialog("close"); 
+							server.delUser(
+								$(this).attr('u'), 
+								function(r){
+									user = r;
+									updateUser();
+								});
+						}, 
+						"取消": function() { 
+							$(this).dialog("close"); 
+						} 
+					}
+				});		
+				
+				$('#dlg_cancel').dialog({
+					autoOpen: false,
+					width: 200,
+					height:200,
+					modal: true,
+					buttons: {
+						"確定": function() { 
+							$(this).dialog("close"); 
+							$('#dlg_reserve').dialog("close"); 
+							server.cancelReserved(
+								$(this).attr('key'), 
+								function(r){
+									if(r.success)
+									    update();
+								});
+						}, 
+						"取消": function() { 
+							$(this).dialog("close"); 
+						} 
+					}
+				});	
+				
+				$('a.goto').live('click', function(){
+				    var goto = $(this).attr('href').substring(1);
+				    setCurrentPage(goto, $(this).text());
+				});
+				
+				$("#msg").ajaxComplete(function(e, xhr, settings) {
+					if(xhr.status != 200) {
+					}
+					else if(xhr.status == 200 && !conn) {					
+					}
+				});		
+					
+				$("#msg").ajaxError(function(event, request, settings){
+					//addMsg("Error requesting page " + settings.url);
+				});
+				
+				updateItems();
+				bindWorkspace();
+				queryTasks();
+				var goto = window.location.hash.substring(1);
+				setCurrentPage(goto);
+			});		
+		</script>
+	</head>
+	<body>
+		<div id="divContent">
+		    <div id="home">
+                <div>
+                    <p>
+                        <span class='title'></span>
+                        <!--<a class='button corner-all' href="#">今天</a>-->
+                        <a id="export" class='button corner-all tip' qtip-content='下載報表' href="/exportXls"><span class='icon ui-icon-circle-arrow-s'></span></a>
+                    </p>
+                </div>
+                <div>
+                    <div id="divReserved">
+                        <br />
+                    </div>
+                    <div class='reports'>
+                        <div id="divBreakfast">
+                            <div>早餐</div>
+                            <div><span class="count">0</span>份</div>
+                        </div>
+                        <div id="birthdays" class='hide'>
+                            <div>生日</div>
+                            <div id="births">
+                                
+                            </div>
+                        </div>
+                    </div>
+                    <div style="clear:both;"></div>
+                </div>
+            </div>
+            <div id="customer" style='display:none;'>
+                <div class='content'>
+                    <div class='info'>
+                        <div id="divCustomers">
+                            <div>
+                                <div class='header'>
+                                    <p>
+                                        <span class='title'></span>
+                                    </p>
+                                    <ul class='tools'><li><button id='btnEditCustomer'><span class='icon ui-icon-pencil'></span></button></li><li><button id='btnDelCustomer'><span class='icon ui-icon-closethick'></span></button></li></ul>
+                                </div>
+                                <div id="divCustomerInfo"></div>
+                                <div id='note'><p></p></div>
+                                <div id="divReservedRecords"></div>
+                            </div>
+                            <div class="empty">
+                                <p>
+                                    在上方搜尋列輸入顧客資訊進行搜尋
+                                </p>
+                            </div>
+                        </div>
+                        <div class='reports'>
+                            <div class='empty'></div>
+                            <div id="divReservedCount" style="display:none;">
+                                <div>住房</div>
+                                <div><span class="count">0</span>次</div>
+                            </div>
+                        </div>
+                        <div style="clear:both;"></div>
+                    </div>
+                    <div class='activities'>
+                        <div class='header'>
+                            <p>
+                                <span class='title'></span>
+                            </p>
+                        </div>
+                        <div class='list'>
+                            Oops!
+                        </div> 
+                        <div class='reports'>
+                            <div id="divCustomerCount">
+                                <div>累積顧客</div>
+                                <div><span class="count">0</span>人</div>
+                            </div>
+                        </div>
+                        <div style="clear:both;"></div>
+                    </div>
+                    
+                </div>
+            </div>
+            <div id="items" style='display:none;'>
+                <div>
+                    <div id="divItemInfo">
+                        <div class='header'>
+                            <p>
+                                <span class='title'></span>
+                            </p>
+                            <ul class='tools'><li><button id='btnEditItem'><span class='icon ui-icon-pencil'></span></button></li><li><button><span class='icon ui-icon-closethick'></span></button></li></ul>
+                        </div>
+                        <div class='records'>
+                        </div>
+                    </div>
+                    <div class='reports'>
+                        <div class='empty'></div>
+                        <div id="divReservedCount" style="display:none;">
+                            <div>住房</div>
+                            <div><span class="count">0</span>次</div>
+                        </div>
+                        <div id="divRoomCount">
+                            <div>總房間數</div>
+                            <div><span class="count">0</span>間</div>
+                        </div>
+                    </div>
+                    <div style="clear:both;"></div>
+                </div>
+            </div>
+        </div>
+		<div id="footer">
+		    &copy;2012 {{ app_name }}
+		</div>
+		<!-- ui-dialog -->
+		<div id="dlg_reserve">
+			<div id="dialog-form" class="ui-dialog-content ui-widget-content" style="width:auto; min-height: 0px; height: 520px; ">
+				<form>
+                    <p class="title">
+                        預約 <input type="text" name="item" id="item" autocomplete="off" />
+                    </p>
+				    <div class='customer-info'>
+				        <p>
+				            顧客資訊
+				        </p>
+                        <label for="name">姓名 <span class='tip'>輸入姓名或電話可搜尋現有顧客</span></label>
+                        <div class="text textboxlist">
+                            <input type="text" name="name" id="name" autocomplete="off" />
+                        </div>
+                        <label for="birthday">生日</label>
+                        <select name="birth_year" class="birthday" id="birth_year">
+                            <option value='1900'>年</option>
+                            {% for year in years %}
+                                <option value='{{year}}'>{{year}} 年</option>
+                            {% endfor %}
+                        </select>
+                        <select name="birth_month" class="birthday" id="birth_month">
+                            <option value=''>月</option>
+                            {% for month in months %}
+                                <option value='{{month}}'>{{month}} 月</option>
+                            {% endfor %}
+                        </select>
+                        <select name="birth_day" class="birthday" id="birth_day">
+                            <option value=''>日</option>
+                            {% for day in days %}
+                                <option value='{{day}}'>{{day}} 日</option>
+                            {% endfor %}
+                        </select>
+                        <label for="email">電話</label>
+                        <input type="text" name="phone" id="phone" value="" class="text" />
+                        <label for="password">信箱</label>
+                        <input type="text" name="email" id="email" value="" class="text" />
+                        <label for="msg_approval">願意收到官方訊息嗎?</label>
+                        <ol name="msg_approval" id="msg_approval" class="radio">
+                            <li class='default selected' value='1'>是</li>
+                            <li value='0'>否</li>
+                        </ol>
+					</div>
+					<div>
+					    <p>
+				            訂房資訊
+				        </p>
+                        <label for="password">從</label>
+                        <input type="text" name="date_from" id="date_from" value="" class="text datepicker" />
+                        <label for="password">到</label>
+                        <input type="text" name="date_to" id="date_to" value="" class="text datepicker" />
+                        <label for="breakfast">早餐</label>
+                        <select name="breakfast" id="breakfast" class="text">
+                            <option value='0'>0 份</option>
+                            <option value='1'>1 份</option>
+                            <option value='2'>2 份</option>
+                            <option value='3'>3 份</option>
+                            <option value='4'>4 份</option>
+                            <option value='5'>5 份</option>
+                            <option value='6'>6 份</option>
+                            <option value='7'>7 份</option>
+                            <option value='8'>8 份</option>
+                        </select>
+                        <label for="note">備註</label>
+                        <textarea name="note" id="note"  class="text"></textarea>
+                        
+                        <ol name="paid" id="paid" class="radio">
+                            <li value='1'>已付款</li>
+                            <li class='default selected' value='0'>未付款</li>
+                        </ol>
+                    </div>
+				</form>
+			</div>
+		</div>
+        <div id="dlg_customer" title="顧客資訊">
+			<div id="dialog-form" class="ui-dialog-content ui-widget-content" style="width:auto; min-height: 0px; height: 520px; ">
+				<form>
+                    <p>
+                        <span class="title"></span>
+                    </p>
+				    <div class='customer-info'>
+				        <p>
+				            基本資料
+				        </p>
+                        <label for="name">姓名</label>
+                        <input type="text" name="name" id="name" value="" class="text" />
+                        <label for="birthday">生日</label>
+                        <select name="birth_year" class="birthday" id="birth_year">
+                            <option value='1900'>年</option>
+                            {% for year in years %}
+                                <option value='{{year}}'>{{year}} 年</option>
+                            {% endfor %}
+                        </select>
+                        <select name="birth_month" class="birthday" id="birth_month">
+                            <option value=''>月</option>
+                            {% for month in months %}
+                                <option value='{{month}}'>{{month}} 月</option>
+                            {% endfor %}
+                        </select>
+                        <select name="birth_day" class="birthday" id="birth_day">
+                            <option value=''>日</option>
+                            {% for day in days %}
+                                <option value='{{day}}'>{{day}} 日</option>
+                            {% endfor %}
+                        </select>
+                        <label for="email">電話</label>
+                        <input type="text" name="phone" id="phone" value="" class="text" />
+                        <label for="password">信箱</label>
+                        <input type="text" name="email" id="email" value="" class="text" />
+                        <label for="msg_approval">願意收到官方訊息嗎?</label>
+                        <div>
+                            <ol name="msg_approval" id="msg_approval" class="radio">
+                                <li class='default selected' value='1'>是</li>
+                                <li value='0'>否</li>
+                            </ol>
+                            <div class='clear'></div>
+                        </div>
+                        <label for="note">關於</label>
+                        <textarea name="note" id="note"  class="text"></textarea>
+					</div>
+				</form>
+			</div>
+		</div>
+		<div id="dlg_room" title="新增房間">
+			<div id="dialog-form" class="ui-dialog-content ui-widget-content" style="width: auto; min-height: 0px; height: 170px; ">
+				<p class="validateTips"></p>
+			
+				<form>
+				<fieldset>
+					<label for="name">名稱</label>
+					<input type="text" id="name" class="text ui-widget-content ui-corner-all" />
+					<label for="room">標籤</label>
+					<select name="floor" id="floor" class="text ui-widget-content ui-corner-all">
+					    <option value='1'>1</option>
+					    <option value='2'>2</option>
+					    <option value='3'>3</option>
+					    <option value='4'>4</option>
+					    <option value='5'>5</option>
+					    <option value='6'>6</option>
+					</select>
+				</fieldset>
+				</form>
+			</div>
+		</div>
+		<div id="dlg_cancel" title="取消訂房">
+			<div id="dialog-form" class="ui-dialog-content ui-widget-content" style="width: auto; min-height: 0px; height: 208px; ">
+				<p>確定要取消訂房嗎?</p>
+			</div>
+		</div>
+		<div id="dlg_delete" title="刪除訂房">
+			<div id="dialog-form" class="ui-dialog-content ui-widget-content" style="width: auto; min-height: 0px; height: 208px; ">
+				<p>確定要刪除訂房嗎?</p>
+			</div>
+		</div>
+		<div id="left">
+		    <div id="now"></div>
+		    <div id="tags"></div>
+		</div>
+        <div id="divTop">
+            <div>
+                <div id='searchbar'>
+                    <input id='search' type='text' class='text empty' />
+                    <button id='btnSearch'><span class='ui-icon'></span></button>
+                </div>
+                <div id='menu'>
+                    <ol>
+                        <li class='current home'><a class='goto' href='#'>首頁</a></li>
+                        <li class='customer'><a class='goto' href='#Customer'>顧客資訊</a></li>
+                        <li class='todo tip' qtip-content='待辦事項'><a href='#'><span class='count'>0</span></a></li>
+                        <!--<li class='settings'><a class='goto' href='#Settings'>設定</a></li>-->
+                    </ol>
+                    <div style='clear:both;'></div>
+                </div>
+                <div class='clear'></div>
+            </div>
+		</div>
+		<div id='msg'>讀取中...</div>
+		<div id='todo' style='display:none;'>
+		    <div class='container'>
+		        <div class='tasks'>
+                    <div class='task new'><input class='isfinished' type="checkbox" /><input type='text' class='content' /></div>
+		        </div>
+		        <div class='footer'><button class='button clearall'><span class='ui-icon ui-icon-trash'></span></button></div>
+		    </div>
+		</div>
+        <!--<applet id="applet" code="SmsApplet" codebase="/static/applet/" height="30" width="300">
+        未安裝 Java ，所以無法顯示....
+        </applet>-->
+	</body>
+</html>
