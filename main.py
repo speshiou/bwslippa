@@ -215,55 +215,6 @@ class MergeCustomers(webapp.RequestHandler):
                 continue
             lastCustomer = c
         self.response.out.write("merge %d customers"%(i))
-
-"""class SearchHandler(webapp.RequestHandler):
-    def get(self):
-        keyword = self.request.get('term')
-        if not keyword:
-            self.response.out.write(json.dumps([])) 
-        q = db.GqlQuery("SELECT * FROM Customer WHERE name >= :1 AND name < :2", keyword, keyword + u"\ufffd ORDER BY name ASC")
-        ret = []
-        for r in q:
-            if r.deleted:
-                continue
-            birthday = ""
-            phone = ""
-            email = ""
-            label = r.name
-            if r.birthday:
-                birthday = r.birthday.strftime("%m/%d/%Y")
-            if r.phone:
-                phone = r.phone
-                label += " (%s)" % (phone)
-            if r.email:
-                email = r.email
-            msg_approval = OPTION_Y if r.msg_approval else OPTION_N
-            ret.append({'name':r.name, 'key':str(r.key()), 'label':label})
-        if not len(ret):
-            q = db.GqlQuery("SELECT * FROM Customer WHERE phone >= :1 AND phone < :2", keyword, keyword + u"\ufffd ORDER BY name ASC")
-            ret = []
-            for r in q:
-                if r.deleted:
-                    continue
-                birthday = ""
-                phone = ""
-                email = ""
-                label = r.name
-                if r.birthday:
-                    birthday = r.birthday.strftime("%m/%d/%Y")
-                if r.phone:
-                    phone = r.phone
-                    label += " (%s)" % (phone)
-                if r.email:
-                    email = r.email
-                msg_approval = OPTION_Y if r.msg_approval else OPTION_N
-                ret.append({'name':r.name, 'key':str(r.key()), 'label':label})
-
-        q = db.GqlQuery("SELECT * FROM Item WHERE name >= :1 AND name < :2", keyword, keyword + u"\ufffd ORDER BY floor DESC")
-        for r in q:
-            ret.append({'name':r.name, 'key':str(r.key()), 'label':r.name, 'isItem':True})
-
-        self.response.out.write(json.dumps(ret))""" 
         
 class SearchHandler(webapp.RequestHandler):
     def get(self):
