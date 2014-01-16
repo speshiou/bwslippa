@@ -701,6 +701,23 @@ class RPCMethods:
             updated.append(r)
         db.put(updated)
         return {'success':True}
+        
+    def getTimelineEvent(self, key, date):
+        if date:
+            date = datetime.strptime(date.strip(), "%m/%d/%Y")
+        item = db.get(db.Key(key))
+        if not item:
+            return {'success':False} 
+        else:
+            q = Reserve.all()
+            q.filter("item =", item)
+            q.filter('status =', RESERVE_STATUS_NORMAL)
+            if date:
+                q.filter('date_to <=', date)
+            q.order('-date_to')
+            q.fetch(20)
+            result = [r.tojson() for r in q]
+        return {'success':True, 'result':result, 'item':item.tojson() } 
 
 app = webapp.WSGIApplication([('/', MainHandler),
                                           ('/_cron/customer_counter', CustomerCounter),
