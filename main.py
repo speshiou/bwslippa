@@ -395,6 +395,35 @@ class CreateTestData(webapp.RequestHandler):
                 item.tags = [tag.key()]
                 item.put()
 
+class Willy(webapp.RequestHandler):
+    def get(self): 
+        key = self.request.get('key')
+        date = self.request.get('date')
+        out = self.willyTest(key, date)
+        self.response.out.write(out)
+        
+        
+    def willyTest(self, key, date):
+        if date:
+            date = datetime.strptime(date.strip(), "%m/%d/%Y")
+        item = db.get(db.Key(key))
+        if not item:
+            logging.debug("123")
+            return {'success':False} 
+        else:
+            q = Reserve.all()
+            q.filter("item =", item)
+            q.filter('status =', RESERVE_STATUS_NORMAL)
+            if date:
+                q.filter('date_to <=', date)
+            q.order('-date_to')
+            q.fetch(20)
+            result = [r.tojson() for r in q]
+        logging.debug("456")
+        return {'success':True, 'result':result, 'item':item.tojson() } 
+
+
+        
 class RPCHandler(webapp.RequestHandler):
     """ Allows the functions defined in the RPCMethods class to be RPCed."""
     def __init__(self, request, response):
@@ -570,6 +599,7 @@ class RPCMethods:
         items = [r.tojson() for r in q];
         return {'items':items}
 
+        # timeline
     def queryItemInfo(self, key):
         item = db.get(db.Key(key))
         if not item:
@@ -701,6 +731,7 @@ class RPCMethods:
             updated.append(r)
         db.put(updated)
         return {'success':True}
+        
 
 app = webapp.WSGIApplication([('/', MainHandler),
                                           ('/_cron/customer_counter', CustomerCounter),
@@ -710,6 +741,7 @@ app = webapp.WSGIApplication([('/', MainHandler),
                                           ('/item', QueryItems),
                                           ('/search', SearchHandler),
                                           ('/test', CreateTestData),
+                                          ('/willy', Willy),
                                           ('/birthdate', Birthdate),
                                           ('/exportXls', ExportXls),
                                           ('/balance', Balance)],
