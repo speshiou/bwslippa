@@ -20,6 +20,8 @@ import json
 
 import logging
 
+from google.appengine.ext.db import *
+
 from datetime import datetime,timedelta
 
 from db import *
@@ -345,7 +347,7 @@ class CreateTestData(webapp.RequestHandler):
                 item = Item(name="%d0%d" % (i, j))
                 item.tags = [tag.key()]
                 item.put()
-
+                
 class RPCHandler(webapp.RequestHandler):
     """ Allows the functions defined in the RPCMethods class to be RPCed."""
     def __init__(self, request, response):
@@ -669,6 +671,36 @@ class RPCMethods:
             q.fetch(20)
             result = [r.tojson() for r in q]
         return {'success':True, 'result':result, 'item':item.tojson() } 
+        
+        
+    def addOrUpdateTagName(self, tagKey, tagName): 
+        if tagKey: # update
+            tag = db.get(db.Key(tagKey))
+            if not tag:
+                return {'success':False} 
+            else:
+                tag.name = tagName
+                tag.put()
+                return {'success':True} 
+        else: # add
+            tag = Tag(name=tagName, type=Tag.TYPE_ITEM)
+            tag.put()
+            return {'success':True} 
+            
+            
+    def deleteTagByKey(self, tagKey): 
+        if tagKey: # update
+            try:
+                tag = db.get(db.Key(tagKey))
+                if not tag:
+                    return {'success':False} 
+                else:
+                    tag.delete()
+                    return {'success':True} 
+            except BadKeyError:
+                logging.info('BadKeyError')
+        else: # add
+            return {'success':False} 
 
 app = webapp.WSGIApplication([('/', MainHandler),
                                           ('/_cron/customer_counter', CustomerCounter),
