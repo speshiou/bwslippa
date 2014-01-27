@@ -701,6 +701,29 @@ class RPCMethods:
                 logging.info('BadKeyError')
         else: # add
             return {'success':False} 
+            
+            
+    def updateTagPriority(self, tagInfo): 
+        if tagInfo: 
+            try:
+                updated = []
+                logging.info(tagInfo)
+                for o in tagInfo:
+                    k = o['key']
+                    p = o['priority']
+                    tag = db.get(db.Key(k))
+                    if tag:
+                        tag.priority = p
+                    
+                    updated.append(tag)
+                
+                db.put(updated)
+                return {'success':True} 
+            except BadKeyError:
+                logging.info('BadKeyError')
+                return {'success':False} 
+        else: 
+            return {'success':False} 
 
 app = webapp.WSGIApplication([('/', MainHandler),
                                           ('/_cron/customer_counter', CustomerCounter),
