@@ -22,6 +22,15 @@ class Counter(db.Model):
         c.put()
         return c.count
 
+class AppInfo(db.Model):
+    name = db.StringProperty(required=True)
+    start_time = db.DateTimeProperty(auto_now=True)
+    expire_time = db.DateTimeProperty()
+    
+    def tojson(self, withTags=True):
+        return {'name':self.name}
+        
+        
 class Customer(db.Model):
     name = db.StringProperty(required=True)
     birthday = db.DateTimeProperty()
@@ -32,6 +41,7 @@ class Customer(db.Model):
     msg_approval = db.BooleanProperty(default=False)
     deleted = db.BooleanProperty(default=False)
     created_time = db.DateTimeProperty(auto_now=True)   
+    ap = db.ReferenceProperty(AppInfo)
     
     def tojson(self):
         birthday = ""
@@ -52,6 +62,7 @@ class Customer(db.Model):
 class Tag(db.Model):
     name = db.StringProperty(required=True)
     type = db.IntegerProperty(required=True)
+    priority = db.IntegerProperty()
     
     TYPE_ITEM = 1
     TYPE_CUSTOMER = 2
@@ -63,6 +74,7 @@ class Item(db.Model):
     name = db.StringProperty(required=True)
     tags = db.ListProperty(db.Key, default=None)
     created_time = db.DateTimeProperty(auto_now=True)
+    ap = db.ReferenceProperty(AppInfo)
     
     def tojson(self, withTags=True):
         return {'name':self.name,'tags':None, 'key':str(self.key()) }
@@ -114,3 +126,20 @@ class Task(db.Model):
     
     def tojson(self):
         return { 'key':str(self.key()), 'content':self.content, 'finished':self.finished }
+        
+        
+class User(db.Model):
+    name = db.StringProperty(required=True)
+    pwd = db.StringProperty(required=True)
+    tags = db.ListProperty(db.Key, default=None)
+    
+    def tojson(self, withTags=True):
+        return {'name':self.name,'name':self.name,'tags':None}
+    
+
+class AccountMatch(db.Model):
+    user = db.ReferenceProperty(User, required=True)
+    ap = db.ReferenceProperty(AppInfo, required=True)
+    
+    def tojson(self, withTags=True):
+        return {'user':self.user, 'ap':self.ap}
