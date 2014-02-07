@@ -24,6 +24,10 @@ from google.appengine.ext.db import *
 
 from datetime import datetime,timedelta
 
+from google.appengine.api import users
+
+from webapp2_extras import sessions
+
 from db import *
 
 import webapp2 as webapp
@@ -42,6 +46,13 @@ OPTION_N = "0"
 OPTION_Y = "1"
 
 KEY_COUNTER_CUSTOMER_COUNT = "key_counter_customer"
+KEY_SESSION_USER = "key_session_user"
+
+config = {}
+config['webapp2_extras.sessions'] = {
+    'secret_key': 'my-super-secret-key',
+}
+
 
 class MainHandler(webapp.RequestHandler):
     def get(self):
@@ -326,7 +337,58 @@ class QueryItems(webapp.RequestHandler):
         for r in q:
             ret.append({'name':r.name, 'key':str(r.key()), 'label':r.name})
         self.response.out.write(json.dumps(ret))      
+    
+class AddApp(webapp.RequestHandler):
+    def get(self): 
+        self.response.out.write('AddApp') 
+           
 
+class BaseHandler(webapp.RequestHandler):
+    def dispatch(self):
+        # Get a session store for this request.
+        self.session_store = sessions.get_store(request=self.request)
+        try:
+            # Dispatch the request.
+            webapp.RequestHandler.dispatch(self)
+        finally:
+            # Save all sessions.
+            self.session_store.save_sessions(self.response)
+
+    @webapp.cached_property
+    def session(self):
+        # Returns a session using the default cookie key.
+        return self.session_store.get_session()
+
+           
+class Signup(BaseHandler):
+    def get(self): 
+        cuser = users.get_current_user()
+        if cuser:
+            user = User.get_by_key_name(cuser.email())
+            if not user:
+                mail = cuser.email()
+                user = User(key_name=mail, name=mail, pwd='')
+                user.put()
+            
+            self.session[KEY_SESSION_USER] = user.key().name()   
+            self.redirect("/addapp") 
+        else:
+            self.redirect("/welcome") 
+        
+            
+class Welcome(webapp.RequestHandler):
+    def get(self): 
+        cuser = users.get_current_user()
+        if cuser:
+            user = User.get_by_key_name(cuser.email())
+            if user:
+                self.redirect("/") 
+                return
+
+        login = ('Welcome! (<a href="%s">Start</a>)' % (users.create_login_url('/signup')))
+        self.response.out.write(login)   
+
+        
 class CustomerCounter(webapp.RequestHandler):
     def get(self): 
         q = Customer.all()
@@ -348,7 +410,8 @@ class CreateTestData(webapp.RequestHandler):
                 item.tags = [tag.key()]
                 item.put()
                 
-class RPCHandler(webapp.RequestHandler):
+ 
+class RPCHandler(BaseHandler):
     """ Allows the functions defined in the RPCMethods class to be RPCed."""
     def __init__(self, request, response):
         self.initialize(request, response)
@@ -395,7 +458,6 @@ class RPCHandler(webapp.RequestHandler):
 
         result = func(*args)
         self.response.out.write(json.dumps(result))        
-
 
 class RPCMethods:
     """ Defines the methods that can be RPCed.
@@ -724,6 +786,22 @@ class RPCMethods:
                 return {'success':False} 
         else: 
             return {'success':False} 
+            
+     
+    def processAddApp(self, expire_date, ap_name): 
+        # user
+        key = self.session.get(KEY_SESSION_USER)                
+        user = User.get_by_key_name(key)
+        # ap
+        time = datetime.strptime(expire_date, "%m/%d/%Y")
+        ap = AppInfo(name=ap_name)
+        ap.expire_time=time
+        ap.put()
+        # match    
+        match = AccountMatch(user=user, ap=ap)
+        match.put()
+        return {'success':True} 
+            
 
 app = webapp.WSGIApplication([('/', MainHandler),
                                           ('/_cron/customer_counter', CustomerCounter),
@@ -731,9 +809,13 @@ app = webapp.WSGIApplication([('/', MainHandler),
                                           ('/css', CssHandler),
                                           ('/customer', QueryCustomer),
                                           ('/item', QueryItems),
+                                          ('/welcome', Welcome),
+                                          ('/addapp', AddApp),
+                                          ('/signup', Signup),
                                           ('/search', SearchHandler),
                                           ('/test', CreateTestData),
                                           ('/birthdate', Birthdate),
                                           ('/exportXls', ExportXls),
                                           ('/balance', Balance)],
+                                         config=config,
                                          debug=True)
