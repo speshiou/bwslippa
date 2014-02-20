@@ -143,3 +143,11 @@ class AccountMatch(db.Model):
     
     def tojson(self, withTags=True):
         return {'user':self.user, 'ap':self.ap}
+        
+        
+class AppDeviceList(db.Model):
+    ap = db.ReferenceProperty(AppInfo, required=True)
+    devices = db.ListProperty(str, default=None)
+    
+    def tojson(self, withTags=True):
+        return {'ap':self.ap, 'devices':self.devices}

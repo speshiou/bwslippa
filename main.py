@@ -341,7 +341,7 @@ class QueryItems(webapp.RequestHandler):
 class AddApp(webapp.RequestHandler):
     def get(self): 
         self.response.out.write('AddApp') 
-           
+                   
 
 class BaseHandler(webapp.RequestHandler):
     def dispatch(self):
@@ -801,6 +801,26 @@ class RPCMethods:
         match = AccountMatch(user=user, ap=ap)
         match.put()
         return {'success':True} 
+        
+    def registerDevice(self, item_key, device_key): 
+        q = AppDeviceList.all()
+        q.filter("ap=", db.Key(item_key))
+        result = q.fetch(1)
+        if len(result)>0:
+            appDeviceList = result[0]
+            if device_key in appDeviceList.devices:
+                #already exist in DB
+                pass
+            else:                
+                #gen data
+                appDeviceList.devices.append(device_key)
+                appDeviceList.put()
+        else:
+            #gen table + data
+            ap = db.get(db.Key(item_key))
+            appDeviceList = AppDeviceList(ap=ap, devices=[device_key])
+            appDeviceList.put()
+        
             
 
 app = webapp.WSGIApplication([('/', MainHandler),
