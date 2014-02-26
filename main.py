@@ -20,6 +20,8 @@ import json
 
 import logging
 
+from google.appengine.api import channel
+
 from google.appengine.ext.db import *
 
 from datetime import datetime,timedelta
@@ -386,7 +388,7 @@ class Welcome(webapp.RequestHandler):
                 return
 
         login = ('Welcome! (<a href="%s">Start</a>)' % (users.create_login_url('/signup')))
-        self.response.out.write(login)   
+        self.response.out.write(login)          
 
         
 class CustomerCounter(webapp.RequestHandler):
@@ -800,6 +802,20 @@ class RPCMethods:
         # match    
         match = AccountMatch(user=user, ap=ap)
         match.put()
+        return {'success':True} 
+        
+    def getChannelToken(self, cid): 
+        # user
+        user = users.get_current_user()
+        # generate token with cid
+        token = channel.create_channel(user.user_id() + cid)
+        
+        ret = {'token':token, 'cid':cid, 'success':True}
+        return ret
+        
+    def sendChannelMessage(self, cid): 
+        user = users.get_current_user()
+        channel.send_message(user.user_id() + cid,"sync")
         return {'success':True} 
         
     def registerDevice(self, item_key, device_key): 
