@@ -379,16 +379,11 @@ class Signup(BaseHandler):
         
             
 class Welcome(webapp.RequestHandler):
-    def get(self): 
-        cuser = users.get_current_user()
-        if cuser:
-            user = User.get_by_key_name(cuser.email())
-            if user:
-                self.redirect("/") 
-                return
-
-        login = ('Welcome! (<a href="%s">Start</a>)' % (users.create_login_url('/signup')))
-        self.response.out.write(login)          
+    def get(self):
+        template_values = {"start_link":users.create_login_url('/signup')}
+        path = os.path.join(os.path.dirname(__file__), 'welcome.html')
+        t = template.Template(file(path,'rb').read())
+        self.response.out.write(t.render(template.Context(template_values)))
 
         
 class CustomerCounter(webapp.RequestHandler):
