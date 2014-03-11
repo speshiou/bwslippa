@@ -65,7 +65,7 @@ class MainHandler(webapp.RequestHandler):
                 "days":range(1, 32),
                 "locale":"zh-TW"
             }
-        path = os.path.join(os.path.dirname(__file__), 'index.html')
+        path = os.path.join(os.path.dirname(__file__), 'templates/index.html')
         t = template.Template(file(path,'rb').read())
         self.response.out.write(t.render(template.Context(template_values)))
         
@@ -381,7 +381,7 @@ class Signup(BaseHandler):
 class Welcome(webapp.RequestHandler):
     def get(self):
         template_values = {"start_link":users.create_login_url('/signup')}
-        path = os.path.join(os.path.dirname(__file__), 'welcome.html')
+        path = os.path.join(os.path.dirname(__file__), 'templates/welcome.html')
         t = template.Template(file(path,'rb').read())
         self.response.out.write(t.render(template.Context(template_values)))
 
