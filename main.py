@@ -368,18 +368,24 @@ class Signup(BaseHandler):
         if cuser:
             user = User.get_by_key_name(cuser.email())
             if not user:
-                mail = cuser.email()
-                user = User(key_name=mail, name=mail, pwd='')
+                user = User(key_name=cuser.email(), name=cuser.email(), pwd='test')
                 user.put()
             
             self.session[KEY_SESSION_USER] = user.key().name()   
-            self.redirect("/addapp") 
+            self.redirect("/store") 
         else:
-            self.redirect("/welcome") 
+            self.redirect("/") 
         
             
-class Welcome(webapp.RequestHandler):
+class Welcome(BaseHandler):
     def get(self):
+        cuser = users.get_current_user()
+        if cuser:
+            user = User.get_by_key_name(cuser.email())
+            if user:
+                self.session[KEY_SESSION_USER] = user.key().name()   
+                self.redirect("/store")
+                return
         template_values = {"start_link":users.create_login_url('/signup')}
         path = os.path.join(os.path.dirname(__file__), 'templates/welcome.html')
         t = template.Template(file(path,'rb').read())
@@ -834,13 +840,13 @@ class RPCMethods:
         
             
 
-app = webapp.WSGIApplication([('/', MainHandler),
+app = webapp.WSGIApplication([('/', Welcome),
                                           ('/_cron/customer_counter', CustomerCounter),
                                           ('/rpc', RPCHandler),
                                           ('/css', CssHandler),
                                           ('/customer', QueryCustomer),
                                           ('/item', QueryItems),
-                                          ('/welcome', Welcome),
+                                          ('/store', MainHandler),
                                           ('/addapp', AddApp),
                                           ('/signup', Signup),
                                           ('/search', SearchHandler),

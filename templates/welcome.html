@@ -2,19 +2,27 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 	<head>
 		<meta http-equiv="content-type" content="text/html; charset=utf-8"/>
-		<meta http-equiv="pragma" content="no-cache" />	
+		<meta http-equiv="pragma" content="no-cache" />
+		<link href='http://fonts.googleapis.com/css?family=Open+Sans:300,400,700' rel='stylesheet' type='text/css'>
         <style>
-            html, body {background-color: #cccccc;height: 100%;}
-            #welcome-message {height: 90%;}
-            #welcome-message p {font-size: 68px;font-family: monospace;font-weight: bold;margin: 0;top: 20%;position: relative;}
-            #link {margin-left: 90%;color: #fff;background-color: #55acee;background-image: linear-gradient(rgba(0,0,0,0),rgba(0,0,0,0.05));-ms-filter: "progid:DXImageTransform.Microsoft.gradient(startColorstr=#00000000, endColorstr=#0C000000)";border: 1px solid #3b88c3;
-                    border-radius: 4px;padding: 8px 16px;font-size: 14px;font-weight: bold;text-decoration:none;}  
+            html, body {height: 100%;
+				margin:0;
+			}
+            #welcome-message {height: 80%;
+				background-color: #d4490b;
+				background-image: -webkit-gradient(radial,center top,0,center top,559,color-stop(0,#f76f18),color-stop(1,#d4490b));
+				background-image: -webkit-radial-gradient(center left,ellipse cover,#fa985a 0,#d4490b 100%);
+			}
+            #welcome-message p {padding-left: 10%;font-size: 68px;font-family: 'open sans';;margin: 0;top: 20%;position: relative; color:white;}
+            #link {margin-left: 80%;color: #fff;background-color: #f6cd4a;background-image: linear-gradient(rgba(0,0,0,0),rgba(0,0,0,0.05));-ms-filter: "progid:DXImageTransform.Microsoft.gradient(startColorstr=#00000000, endColorstr=#0C000000)";
+			border: 1px solid #f0ba0c;
+                    border-radius: 4px;padding: 10px 18px;font-size: 28px;text-decoration:none;}  
         </style>
-	    <title>Willy</title>   
+	    <title>Hostel</title>   
     </head>
     <body>
         <div id="welcome-message">
-            <p>嗨!Joey!! 這是 BWSLIPPA!!!</p>
+            <p>歡迎,<br />這是BWSLIPPA</p>
         </div>
         
         <a id="link" href="{{start_link}}">開始使用</a>
