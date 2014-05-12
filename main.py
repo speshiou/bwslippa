@@ -705,6 +705,7 @@ class RPCMethods:
     def userSignIn(self, account):
         user = User.get_or_insert(key_name=account)
         user.latest_sign_in_time = datetime.today()
+        user.put()
         return {'success':True}
 
 app = webapp.WSGIApplication([('/', MainHandler),
