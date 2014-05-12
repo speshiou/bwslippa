@@ -22,6 +22,13 @@ class Counter(db.Model):
         c.put()
         return c.count
 
+class User(db.Model):
+    name = db.StringProperty()
+    pwd = db.StringProperty()
+    latest_sign_in_time = db.DateTimeProperty(auto_now=True)
+    created_time = db.DateTimeProperty(auto_now=True)
+    updated_time = db.DateTimeProperty(auto_now=True)
+
 class Customer(db.Model):
     name = db.StringProperty(required=True)
     birthday = db.DateTimeProperty()

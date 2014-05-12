@@ -701,6 +701,11 @@ class RPCMethods:
             updated.append(r)
         db.put(updated)
         return {'success':True}
+        
+    def userSignIn(self, account):
+        user = User.get_or_insert(key_name=account)
+        user.latest_sign_in_time = datetime.today()
+        return {'success':True}
 
 app = webapp.WSGIApplication([('/', MainHandler),
                                           ('/_cron/customer_counter', CustomerCounter),
